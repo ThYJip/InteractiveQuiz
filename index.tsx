@@ -272,7 +272,7 @@ const Character = ({ name, emotion = "happy", side = "left" }: { name: string, e
       position: "absolute", 
       bottom: "-10px", 
       [side]: "20px", 
-      fontSize: "5rem",
+      fontSize: "5rem", 
       filter: "drop-shadow(0 5px 5px rgba(0,0,0,0.2))",
       zIndex: 10,
       transition: "all 0.3s ease",
@@ -862,7 +862,7 @@ export default function App() {
                     <Character name="cat" emotion="happy" side="right" />
                 </div>
                 <div style={{ marginTop: "40px" }}>
-                    <Button onClick={() => window.location.reload()}>{t.restart}</Button>
+                    <Button onClick={() => setCurrentSlide(0)}>{t.restart}</Button>
                 </div>
             </div>
         )
