@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createRoot } from "react-dom/client";
 import { 
@@ -13,7 +12,13 @@ import {
   Tag,
   Maximize,
   Minimize,
-  Languages
+  Languages,
+  Code,
+  Terminal,
+  BookOpen,
+  HelpCircle,
+  AlertCircle,
+  Lightbulb
 } from "lucide-react";
 
 // --- Types ---
@@ -38,11 +43,28 @@ const TEXTS = {
     start: "Start Journey",
     next: "Next",
     back: "Back",
-    step: "Step",
-    of: "of",
-    hoisting: "State Hoisting",
-    lazyColumn: "LazyColumn",
+    step: "Page",
+    of: "/",
     
+    // Concept Explanations
+    diaryAnalogyTitle: "Analogy: The Private Diary",
+    diaryAnalogy: "Variables inside a function are like a private diary inside a locked tent. Only the person inside (the Component) can read or write to it. The parent outside knows nothing about it.",
+    whiteboardAnalogyTitle: "Analogy: The Public Whiteboard",
+    whiteboardAnalogy: "State Hoisting is like moving the information to a public whiteboard by the campfire. Now everyone can see it (read) and anyone can pick up the marker to update it (write).",
+    
+    patternTitle: "The Standard Pattern: (value, onValueChange)",
+    patternValue: "👁️ value: T (Input)",
+    patternValueDesc: "What the component DISPLAYS. Data flows DOWN from parent.",
+    patternEvent: "🗣️ onValueChange: (T) -> Unit (Output)",
+    patternEventDesc: "What the component SAYS when user interacts. Events flow UP to parent.",
+
+    // Quiz Hints
+    quizHint: "Explanation >",
+    quiz1Hint: "Think about scope. Can a parent access a variable defined inside a child's function body?",
+    quiz1Explain: "Correct! Functions in Kotlin are black boxes. Variables defined inside them (using `val/var`) are local scope. To share state, it must be passed in as a parameter.",
+    quiz2Hint: "If you put everything at the top, every small change re-renders the whole app. Think about efficiency.",
+    quiz2Explain: "Correct! The 'Lowest Common Ancestor' rule ensures we share state only as high as needed, preventing unnecessary re-renders of unrelated components.",
+
     // Slides
     introTitle: "Compose Camp",
     introSubtitle: "Join Xiao Qi and friends to master Android Jetpack Compose!",
@@ -52,28 +74,21 @@ const TEXTS = {
     story1P2: "Meow~ Relax. Think of components like tents. If everyone hides their gear inside their own tent, we can't share anything!",
     story1Lesson: "First lesson: State Hoisting.",
 
-    concept1Title: "The Problem: Independent Tents",
-    concept1P1: "Imagine Rin and Nadeshiko are in separate tents.",
-    concept1TentA: "Has Map A",
-    concept1TentB: "Has Map B",
-    concept1P2: "If state (the Map) is locked inside the component (Tent), they can't agree on a route!",
-    concept1Bad: "🚫 This is a Stateful Component.",
-
-    concept2Title: "The Solution: State Hoisting",
-    concept2P1: "We move the map OUT of the tents and place it by the campfire (The Parent Component).",
-    concept2Shared: "Shared State",
-    concept2P2: "This makes components Stateless. They just receive data and trigger events.",
-    concept2Pattern: "✅ Pattern: (value, onValueChange)",
-
-    quiz1Title: "Campfire Quiz",
-    quiz1Q: "Xiao Qi wants a 'Clear' button OUTSIDE her SearchBar component to empty the text inside. Can she do it if the text state is 'remembered' strictly INSIDE the SearchBar?",
-    quiz1A: "A. Yes, it's easy.",
-    quiz1B: "B. No, she must Hoist the State up.",
-    correct: "Correct! Great job camper! 🌟",
-
-    challenge1Title: "Challenge: Sync the Lanterns",
-    challenge1Desc: "It's getting dark! We need a shared lantern for the whole camp.",
+    concept1Title: "Problem: The Locked Tent",
+    concept1Desc: "In Compose, `remember { mutableStateOf }` creates state that survives recomposition, but it stays locked inside the function scope.",
     
+    concept2Title: "Solution: State Hoisting",
+    concept2Desc: "We move the state up to the caller. This creates a 'Single Source of Truth'.",
+
+    quiz1Title: "Concept Check: Scope",
+    quiz1Q: "Xiao Qi defines `var text` inside `SearchBar`. Can she add a 'Clear' button outside the search bar to empty it?",
+    quiz1A: "A. Yes, using a global variable hack.",
+    quiz1B: "B. No, the state is locked inside the function scope.",
+    quiz1C: "C. Yes, parents can always read child state.",
+    
+    challenge1Title: "Challenge: Sync the Lanterns",
+    challenge1Desc: "Task: The sliders below are disconnected. Refactor the code (flip the switch) to Hoist the State, then set brightness to 80%.",
+
     story2Title: "Chapter 2: Smart Packing",
     story2P1: "Wow! The lantern works perfectly now. Next task: Packing snacks!",
     story2P2: "We have 1000 snack packs to list in our inventory app.",
@@ -81,52 +96,37 @@ const TEXTS = {
 
     concept3Title: "LazyColumn vs Column",
     concept3BadTitle: "The Wrong Way: Column",
-    concept3BadDesc: "Like a 'Stubborn Builder'. It creates ALL 1000 items immediately, even if they are off-screen. This freezes the UI (Jank).",
+    concept3BadDesc: "A standard `Column` renders ALL children immediately. 1000 items = 1000 UI nodes created instantly.",
     concept3GoodTitle: "The Smart Way: LazyColumn",
-    concept3GoodDesc: "Like a 'Smart Builder'. It only creates items that are currently visible. As you scroll, it recycles the logic. This is called Virtualization.",
+    concept3GoodDesc: "`LazyColumn` works like a window. It only renders what you see. As you scroll, it recycles the views.",
 
     challenge2Title: "Challenge: The Snack Inventory",
-    challenge2Desc: "Try scrolling the list below. Notice the 'DOM Nodes' counter.",
+    challenge2Desc: "Task: Switch to 'LazyColumn' mode and scroll down to the bottom to complete the packing list.",
 
     concept4Title: "Pro Tips: Keys & Padding",
-    concept4KeyTitle: "Use Keys (Name Tags)",
-    concept4KeyDesc: "Give every item a unique ID (key). This helps Compose know exactly which item is which, especially when you shuffle or delete items. It keeps state attached to the right item!",
+    concept4KeyTitle: "Keys (Identity)",
+    concept4KeyDesc: "Without keys, Compose assumes items at position 1 are the same, even if data changed. Keys preserve state during reordering.",
     concept4PadTitle: "ContentPadding",
-    concept4PadBad: "Modifier.padding (Shrinks Window) ❌",
-    concept4PadGood: "contentPadding (Pads Inside) ✅",
-    concept4PadDesc: "Use contentPadding so your content is padded, but the scroll area still touches the screen edges.",
+    concept4PadDesc: "Avoid clipping! `contentPadding` adds space inside the scrolling container, ensuring the last item isn't hidden behind navigation bars.",
 
-    quiz2Title: "Final Check: God Component",
-    quiz2Q: "Since State Hoisting is good, should we hoist ALL state to the very top level of the app (A 'God Component')?",
+    quiz2Title: "Final Check: Architecture",
+    quiz2Q: "Should we hoist ALL state to the very top level of the app (A 'God Component')?",
     quiz2A: "A. Yes, keep it all in one place.",
-    quiz2B: "B. No, only hoist as high as needed.",
+    quiz2B: "B. No, only to the 'Lowest Common Ancestor'.",
+    quiz2C: "C. No, never hoist state.",
 
     outroTitle: "Happy Camping!",
     outroBadge: "🌟 Badge Earned!",
     outroMsg: "You are now a Compose Camp Graduate.",
-    outroItem1: "Shared State (Hoisting)",
-    outroItem2: "LazyColumn Virtualization",
-    outroItem3: "Keys & contentPadding",
     restart: "Start Over",
 
     // Mini Games
-    mg_arch_bad: "❌ Independent Internal State",
-    mg_arch_good: "✅ State Hoisted (Shared Source of Truth)",
-    mg_current_arch: "Current Architecture:",
-    mg_slider: "Slider",
-    mg_brightness: "Brightness",
-    mg_lantern_instr_bad: "Try moving the sliders. They don't affect each other! We want them to control the same lantern.",
-    mg_lantern_btn: "✨ Hoist the State!",
-    mg_lantern_success: "It works! Both sliders update the single sharedBrightness state.",
-    mg_lantern_task: "Set brightness to approx 80% to light up the camp!",
-    
-    mg_list_mode_bad: "Use 'Column' (Bad)",
-    mg_list_mode_good: "Use 'LazyColumn' (Good)",
-    mg_list_items: "Items",
-    mg_list_nodes: "DOM Nodes",
-    mg_list_viewport: "Active Viewport",
-    mg_list_instr_bad: "Creating 1000 items at once consumes memory instantly.",
-    mg_list_instr_good: "Creating only visible items saves resources. Scroll down to finish packing!",
+    mg_arch_bad: "❌ Internal State",
+    mg_arch_good: "✅ Hoisted State",
+    mg_lantern_btn: "✨ Hoist State",
+    mg_lantern_success: "Synced! Set to 80%.",
+    mg_list_mode_bad: "Column (Laggy)",
+    mg_list_mode_good: "LazyColumn (Smooth)",
     mg_snack: "Snack"
   },
   zh: {
@@ -134,12 +134,29 @@ const TEXTS = {
     mission: "任务:",
     missionDesc: "用以下装备打造完美的露营地:",
     start: "开始旅程",
-    next: "下一步",
-    back: "返回",
-    step: "第",
-    of: "步 / 共",
-    hoisting: "状态提升 (State Hoisting)",
-    lazyColumn: "LazyColumn (长列表)",
+    next: "下一页",
+    back: "上一页",
+    step: "Page",
+    of: "/",
+
+    // Concept Explanations
+    diaryAnalogyTitle: "比喻：私密日记本",
+    diaryAnalogy: "写在函数内部的变量就像一本锁在帐篷里的日记。只有住在里面的人（组件自己）能看能写。外面的父母（父组件）根本不知道里面写了什么。",
+    whiteboardAnalogyTitle: "比喻：公共白板",
+    whiteboardAnalogy: "状态提升就像把信息写在营火旁的公共白板上。现在所有人都能看到（读取），任何人都可以拿起笔去更新它（写入）。",
+    
+    patternTitle: "标准模式：(value, onValueChange)",
+    patternValue: "👁️ value: T (数据下行)",
+    patternValueDesc: "组件【显示】的内容。由父组件通过参数传进来。",
+    patternEvent: "🗣️ onValueChange: (T) -> Unit (事件上行)",
+    patternEventDesc: "组件【请求修改】的呐喊。通过 Lambda 通知父组件去改白板。",
+
+    // Quiz Hints
+    quizHint: "解析 >",
+    quiz1Hint: "想想【作用域】。父组件能直接访问子函数大括号 `{ }` 里定义的变量吗？",
+    quiz1Explain: "正确！Kotlin 的函数就像黑盒子。在内部用 `remember` 定义的状态是私有的。如果外部想要控制它，必须把状态作为参数传进去。",
+    quiz2Hint: "如果把所有状态都放在最顶层，哪怕只是改一个按钮的颜色，整个 App 都要重绘，效率高吗？",
+    quiz2Explain: "正确！架构的精髓在于“适度”。我们遵循“最近公共祖先”原则，只把状态提升到需要共享它的那一层，避免不必要的重绘。",
 
     // Slides
     introTitle: "Compose 露营训练营",
@@ -148,29 +165,22 @@ const TEXTS = {
     story1Title: "第一章：准备出发",
     story1P1: "大家好，我是小奇！我对编程充满了好奇，但还是个新手。我的组件好像没法互相交流！",
     story1P2: "喵~ 别担心。把组件想象成帐篷。如果大家把装备都藏在自己的帐篷里，就没法共享了！",
-    story1Lesson: "第一课：状态提升 (State Hoisting)。",
+    story1Lesson: "第一课：状态提升 (State Hoisting)",
 
-    concept1Title: "问题所在：各自为战的帐篷",
-    concept1P1: "想象一下抚子和凛住在各自的帐篷里。",
-    concept1TentA: "持有地图 A",
-    concept1TentB: "持有地图 B",
-    concept1P2: "如果状态（地图）被锁在组件（帐篷）内部，她们就无法商量出一条统一的路线！",
-    concept1Bad: "🚫 这就是“有状态” (Stateful) 组件。",
-
+    concept1Title: "问题所在：被困住的状态",
+    concept1Desc: "在 Compose 中，`remember { mutableStateOf }` 虽然能记住状态，但它把状态锁在了函数作用域内部。",
+    
     concept2Title: "解决方案：状态提升",
-    concept2P1: "我们把地图从帐篷里拿出来，放在营火旁（父组件）。",
-    concept2Shared: "共享状态",
-    concept2P2: "这让组件变成了“无状态” (Stateless)。它们只负责接收数据和发送事件。",
-    concept2Pattern: "✅ 标准模式：(value, onValueChange)",
+    concept2Desc: "我们将状态从子组件移到父组件中。这建立了一个“单一信源 (Single Source of Truth)”。",
 
-    quiz1Title: "营地小问答",
-    quiz1Q: "小奇想在 SearchBar 组件外部加一个“清空”按钮。如果文本状态被“remember”死锁在 SearchBar 内部，她能做到吗？",
-    quiz1A: "A. 能，这很容易。",
-    quiz1B: "B. 不能，她必须进行状态提升。",
-    correct: "回答正确！太棒了！🌟",
+    quiz1Title: "试炼一：概念辨析",
+    quiz1Q: "小奇在 `SearchBar` 组件内部定义了 `var text`。她想在组件外部加一个“清空”按钮来清空搜索框，能做到吗？",
+    quiz1A: "A. 能，用全局变量就行。",
+    quiz1B: "B. 不能，因为状态被锁在函数作用域内部了。",
+    quiz1C: "C. 能，父组件总是能读取子组件的变量。",
 
     challenge1Title: "实战挑战：点亮共享提灯",
-    challenge1Desc: "天黑了！我们需要一个共享的提灯来照亮整个营地。",
+    challenge1Desc: "任务：下面的滑块互不相关。请重构代码（点击“状态提升”），然后将亮度调节到 80%。",
 
     story2Title: "第二章：聪明地打包",
     story2P1: "哇！提灯现在工作得完美无缺。下一个任务：打包零食！",
@@ -179,62 +189,113 @@ const TEXTS = {
 
     concept3Title: "LazyColumn vs Column",
     concept3BadTitle: "错误的方式：Column",
-    concept3BadDesc: "就像个“耿直的建筑工”。它会一次性把 1000 个列表项全部创建出来，不管你屏幕上能不能看到。后果：应用卡顿甚至崩溃。",
+    concept3BadDesc: "普通的 `Column` 会立即渲染所有的子项。1000 个数据 = 瞬间创建 1000 个节点，导致卡顿。",
     concept3GoodTitle: "聪明的方式：LazyColumn",
-    concept3GoodDesc: "就像个“聪明的建筑工”。它只在你视线范围内（屏幕可见区域）创建列表项。当你滚动时，它会“随看随建”。核心魔法：虚拟化 (Virtualization)。",
+    concept3GoodDesc: "`LazyColumn` 就像一个窗口。它只渲染你看见的部分。当你滚动时，它会回收旧的格子来装新的数据。",
 
     challenge2Title: "实战挑战：整理零食清单",
-    challenge2Desc: "试着滚动下面的列表。注意观察“DOM 节点数”。",
+    challenge2Desc: "任务：切换到 'LazyColumn' 模式，并滚动到底部完成清单打包。",
 
     concept4Title: "整理技巧：Keys 与 Padding",
-    concept4KeyTitle: "给物品贴上“姓名牌” (Keys)",
-    concept4KeyDesc: "给每个列表项一个唯一的 ID (key)。这能让 Compose 准确识别每个列表项，特别是在列表发生变化时。这对于保持正确的状态非常重要！",
-    concept4PadTitle: "contentPadding 的妙用",
-    concept4PadBad: "Modifier.padding (压缩视口) ❌",
-    concept4PadGood: "contentPadding (内部留白) ✅",
-    concept4PadDesc: "使用 contentPadding 作用于内容本身。这样滚动区域仍然是全尺寸的，只有内容在内部保留边距。",
+    concept4KeyTitle: "Keys (身份证)",
+    concept4KeyDesc: "如果没有 Key，Compose 只能按位置识别。如果列表乱序，状态会错乱。`key` 给了物品唯一的身份。",
+    concept4PadTitle: "contentPadding",
+    concept4PadDesc: "别直接给容器加 padding！使用 `contentPadding`，让内容在滚动容器内部保留呼吸感，同时滚动条能贴边。",
 
-    quiz2Title: "最终测试：上帝组件",
+    quiz2Title: "最终测试：架构设计",
     quiz2Q: "既然状态提升这么好，我们是不是应该把所有状态都提升到最顶层（做一个“上帝组件”）？",
     quiz2A: "A. 是的，这样最整洁。",
-    quiz2B: "B. 不是，只提升那些“需要被共享或控制”的状态。",
+    quiz2B: "B. 不是，只提升到“最近的公共祖先”即可。",
+    quiz2C: "C. 不，永远不要提升状态。",
 
     outroTitle: "Happy Camping!",
     outroBadge: "🌟 获得徽章！",
     outroMsg: "恭喜你毕业了！你已经掌握了 Compose 的精髓。",
-    outroItem1: "状态提升 (共享与协作)",
-    outroItem2: "LazyColumn (高效长列表)",
-    outroItem3: "Keys 与 contentPadding",
     restart: "重新开始",
 
     // Mini Games
-    mg_arch_bad: "❌ 独立的内部状态 (Internal State)",
-    mg_arch_good: "✅ 状态已提升 (共享唯一信源)",
-    mg_current_arch: "当前架构:",
-    mg_slider: "滑块",
-    mg_brightness: "亮度",
-    mg_lantern_instr_bad: "试试拖动滑块。它们互不影响！我们需要它们控制同一个提灯。",
+    mg_arch_bad: "❌ 独立的内部状态",
+    mg_arch_good: "✅ 状态已提升 (共享)",
     mg_lantern_btn: "✨ 状态提升！",
-    mg_lantern_success: "成功了！两个滑块现在更新同一个 sharedBrightness 状态。",
-    mg_lantern_task: "把亮度调到大约 80% 来点亮营地！",
-    
-    mg_list_mode_bad: "使用 'Column' (错误)",
-    mg_list_mode_good: "使用 'LazyColumn' (正确)",
-    mg_list_items: "物品总数",
-    mg_list_nodes: "DOM 节点数",
-    mg_list_viewport: "可见区域",
-    mg_list_instr_bad: "一次性创建 1000 个项目会瞬间消耗内存。",
-    mg_list_instr_good: "只创建可见的项目可以节省资源。向下滚动来完成打包！",
+    mg_lantern_success: "系统已同步！设为 80%。",
+    mg_list_mode_bad: "Column (卡顿)",
+    mg_list_mode_good: "LazyColumn (流畅)",
     mg_snack: "零食"
   }
 };
 
-// --- Assets / Components ---
+// --- Code Content (Localized via helper) ---
 
-const Button = ({ onClick, children, variant = "primary", disabled = false }: { onClick: () => void, children: React.ReactNode, variant?: "primary" | "secondary" | "outline", disabled?: boolean }) => {
+const getCodes = (lang: Language) => ({
+    badState: lang === "zh" ? `// ❌ 错误：状态被困在帐篷里
+@Composable
+fun Tent() {
+    // 这个状态是私有的，外面看不到！
+    var map by remember { mutableStateOf("Map A") }
+    
+    Text(text = map)
+}` : `// ❌ Bad: State trapped in the tent
+@Composable
+fun Tent() {
+    // Private state, invisible to outside!
+    var map by remember { mutableStateOf("Map A") }
+    
+    Text(text = map)
+}`,
+    goodState: lang === "zh" ? `// ✅ 正确：状态提升
+@Composable
+fun Campsite() {
+    // 1. 状态在父组件 (公共白板)
+    var sharedMap by remember { mutableStateOf("Map A") }
+
+    // 2. 通过参数传递下去
+    Tent(
+        map = sharedMap, 
+        onMapChange = { sharedMap = it }
+    )
+}` : `// ✅ Good: State Hoisting
+@Composable
+fun Campsite() {
+    // 1. State in Parent (Public Whiteboard)
+    var sharedMap by remember { mutableStateOf("Map A") }
+
+    // 2. Pass down via parameters
+    Tent(
+        map = sharedMap, 
+        onMapChange = { sharedMap = it }
+    )
+}`,
+    lazyList: lang === "zh" ? `LazyColumn(
+    // ✨ 妙用：内容内边距
+    contentPadding = PaddingValues(16.dp) 
+) {
+    items(
+        items = snacks,
+        // 🔑 关键：唯一身份证
+        key = { snack -> snack.id } 
+    ) { snack ->
+        SnackItem(snack)
+    }
+}` : `LazyColumn(
+    // ✨ Tip: Content Padding
+    contentPadding = PaddingValues(16.dp) 
+) {
+    items(
+        items = snacks,
+        // 🔑 Key: Unique Identity
+        key = { snack -> snack.id } 
+    ) { snack ->
+        SnackItem(snack)
+    }
+}`
+});
+
+// --- Components ---
+
+const Button = ({ onClick, children, variant = "primary", disabled = false, className = "" }: { onClick: () => void, children: React.ReactNode, variant?: "primary" | "secondary" | "outline", disabled?: boolean, className?: string }) => {
   const styles: any = {
-    primary: { background: "var(--camp-green)", color: "white", border: "none" },
-    secondary: { background: "var(--camp-brown)", color: "white", border: "none" },
+    primary: { background: "var(--camp-orange)", color: "white", border: "none", boxShadow: "0 4px 0 #b84319" },
+    secondary: { background: "#8aa881", color: "white", border: "none" },
     outline: { border: "2px solid var(--camp-green)", color: "var(--camp-green)", background: "transparent" }
   };
 
@@ -242,14 +303,15 @@ const Button = ({ onClick, children, variant = "primary", disabled = false }: { 
     <button
       onClick={onClick}
       disabled={disabled}
+      className={className}
       style={{
-        padding: "10px 20px",
-        borderRadius: "20px",
+        padding: "12px 24px",
+        borderRadius: "12px",
         cursor: disabled ? "not-allowed" : "pointer",
         fontWeight: "bold",
         fontSize: "1rem",
         opacity: disabled ? 0.5 : 1,
-        transition: "transform 0.1s, background 0.2s",
+        transition: "transform 0.1s",
         ...styles[variant]
       }}
       onMouseDown={(e) => !disabled && (e.currentTarget.style.transform = "scale(0.95)")}
@@ -258,6 +320,36 @@ const Button = ({ onClick, children, variant = "primary", disabled = false }: { 
       {children}
     </button>
   );
+};
+
+// Simple Kotlin Syntax Highlighter
+const SimpleCodeHighlighter = ({ code }: { code: string }) => {
+    const tokens = code.split(/(\/\/.*|\b(?:fun|val|var|remember|mutableStateOf|by|Composable|Modifier|Column|LazyColumn|items|Text|Button|key|contentPadding|PaddingValues)\b|"[^"]*"|[{}().,=])/g);
+    
+    return (
+        <div style={{ 
+            background: "#282c34", 
+            color: "#abb2bf", 
+            padding: "15px", 
+            borderRadius: "8px", 
+            fontFamily: "'JetBrains Mono', Consolas, monospace", 
+            fontSize: "0.85rem", 
+            lineHeight: "1.6", 
+            overflowX: "auto",
+            border: "1px solid #3e4451"
+        }}>
+            {tokens.map((token, i) => {
+                let color = "#abb2bf"; // default
+                if (token.startsWith("//")) color = "#5c6370"; // Comment (Grey)
+                else if (token.match(/\b(fun|val|var)\b/)) color = "#c678dd"; // Keywords (Purple)
+                else if (token.match(/\b(remember|mutableStateOf|by|items|key|contentPadding)\b/)) color = "#56b6c2"; // Functions/Props (Cyan)
+                else if (token.match(/\b(Composable|Modifier|Column|LazyColumn|Text|Button|PaddingValues)\b/)) color = "#e5c07b"; // Classes/Annotations (Yellow)
+                else if (token.startsWith('"')) color = "#98c379"; // Strings (Green)
+                
+                return <span key={i} style={{ color }}>{token}</span>;
+            })}
+        </div>
+    );
 };
 
 const Character = ({ name, emotion = "happy", side = "left" }: { name: string, emotion?: string, side?: "left" | "right" }) => {
@@ -283,25 +375,19 @@ const Character = ({ name, emotion = "happy", side = "left" }: { name: string, e
   );
 };
 
-// --- Mini-Games ---
+// --- Interactive Components ---
 
-// Challenge 1: State Hoisting (Lanterns)
 const LanternChallenge = ({ onComplete, lang }: { onComplete: () => void, lang: Language }) => {
   const [isHoisted, setIsHoisted] = useState(false);
   const [hasCompleted, setHasCompleted] = useState(false);
   const t = TEXTS[lang];
-  
-  // Independent State (Bad)
   const [brightnessA, setBrightnessA] = useState(50);
   const [brightnessB, setBrightnessB] = useState(30);
-
-  // Shared State (Good)
   const [sharedBrightness, setSharedBrightness] = useState(50);
 
   useEffect(() => {
     if (!hasCompleted && isHoisted && Math.abs(sharedBrightness - 80) < 5) {
        setHasCompleted(true);
-       // Little delay to let them see it
        setTimeout(onComplete, 1500);
     }
   }, [isHoisted, sharedBrightness, onComplete, hasCompleted]);
@@ -311,292 +397,234 @@ const LanternChallenge = ({ onComplete, lang }: { onComplete: () => void, lang: 
   return (
     <div style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: "20px" }}>
       <div style={{ 
-        padding: "10px", 
-        background: isHoisted ? "#e6fffa" : "#fff5f5", 
-        borderRadius: "8px", 
-        border: `2px solid ${isHoisted ? "green" : "red"}`,
-        marginBottom: "10px",
+        padding: "8px 16px", 
+        background: isHoisted ? "#d4edda" : "#f8d7da", 
+        borderRadius: "20px", 
+        color: isHoisted ? "#155724" : "#721c24",
         fontSize: "0.9rem",
-        textAlign: "center"
+        fontWeight: "bold",
+        border: isHoisted ? "1px solid #c3e6cb" : "1px solid #f5c6cb"
       }}>
-        <strong>{t.mg_current_arch} </strong> {isHoisted ? t.mg_arch_good : t.mg_arch_bad}
+        {isHoisted ? t.mg_arch_good : t.mg_arch_bad}
       </div>
 
-      {/* The Lantern */}
       <div style={{ 
         position: "relative", 
-        width: "100px", 
-        height: "140px", 
-        background: "#333", 
+        width: "80px", 
+        height: "120px", 
+        background: "#2d3436", 
         borderRadius: "10px 10px 40px 40px",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        boxShadow: `0 0 ${currentBrightness}px ${currentBrightness / 3}px gold`,
+        boxShadow: `0 0 ${currentBrightness}px ${currentBrightness / 4}px #fdcb6e`,
         transition: "box-shadow 0.2s"
       }}>
         <div style={{
-          width: "60px", height: "80px", background: "gold", borderRadius: "20px",
+          width: "50px", height: "70px", background: "#ffeaa7", borderRadius: "20px",
           opacity: currentBrightness / 100 + 0.2,
           transition: "opacity 0.1s"
         }} />
-        <div style={{ position: "absolute", top: "-15px", width: "30px", height: "15px", background: "#444", borderRadius: "5px" }} />
-        <div style={{ position: "absolute", bottom: "-5px", width: "50px", height: "10px", background: "#222", borderRadius: "5px" }} />
+        <div style={{ position: "absolute", top: "-10px", width: "20px", height: "10px", background: "#636e72", borderRadius: "4px" }} />
       </div>
 
-      <div style={{ display: "flex", gap: "20px", marginTop: "10px", flexWrap: "wrap", justifyContent: "center" }}>
-        {/* Slider A */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "15px", background: "white", borderRadius: "10px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)" }}>
-          <span style={{ fontWeight: "bold", color: "#555" }}>{t.mg_slider} A</span>
-          <input 
-            type="range" 
-            min="0" max="100" 
-            value={isHoisted ? sharedBrightness : brightnessA} 
-            onChange={(e) => {
-              const val = parseInt(e.target.value);
-              if (isHoisted) setSharedBrightness(val);
-              else setBrightnessA(val);
-            }}
-            style={{ accentColor: "var(--camp-green)" }}
-          />
-          <small>{t.mg_brightness}: {isHoisted ? sharedBrightness : brightnessA}%</small>
-        </div>
-
-        {/* Slider B */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "15px", background: "white", borderRadius: "10px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)" }}>
-          <span style={{ fontWeight: "bold", color: "#555" }}>{t.mg_slider} B</span>
-          <input 
-            type="range" 
-            min="0" max="100" 
-            value={isHoisted ? sharedBrightness : brightnessB} 
-            onChange={(e) => {
-              const val = parseInt(e.target.value);
-              if (isHoisted) setSharedBrightness(val);
-              else setBrightnessB(val);
-            }}
-            style={{ accentColor: "var(--camp-green)" }}
-          />
-          <small>{t.mg_brightness}: {isHoisted ? sharedBrightness : brightnessB}%</small>
-        </div>
+      <div style={{ display: "flex", gap: "20px", width: "100%", justifyContent: "center" }}>
+        {[0, 1].map(i => (
+            <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, background: "#fff", padding: "10px", borderRadius: "10px", boxShadow: "0 2px 5px rgba(0,0,0,0.1)" }}>
+                <span style={{ fontSize: "0.8rem", fontWeight: "bold", color: "#888" }}>Switch {i === 0 ? "A" : "B"}</span>
+                <input 
+                    type="range" 
+                    min="0" max="100" 
+                    value={isHoisted ? sharedBrightness : (i === 0 ? brightnessA : brightnessB)} 
+                    onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    if (isHoisted) setSharedBrightness(val);
+                    else i === 0 ? setBrightnessA(val) : setBrightnessB(val);
+                    }}
+                    style={{ width: "100%", accentColor: "var(--camp-orange)" }}
+                />
+            </div>
+        ))}
       </div>
 
       {!isHoisted ? (
-         <div style={{ textAlign: "center", maxWidth: "400px" }}>
-           <p style={{ fontSize: "0.9rem" }}>{t.mg_lantern_instr_bad}</p>
-           <Button onClick={() => setIsHoisted(true)}>{t.mg_lantern_btn}</Button>
-         </div>
+           <Button onClick={() => setIsHoisted(true)} className="pulse-btn">{t.mg_lantern_btn}</Button>
       ) : (
-        <div style={{ textAlign: "center", color: "var(--camp-green)", animation: "fadeIn 0.5s" }}>
-           <p>{t.mg_lantern_success}</p>
-           <p><strong>{t.mg_lantern_task}</strong></p>
+        <div style={{ color: "var(--camp-green)", fontWeight: "bold", animation: "fadeIn 0.5s" }}>
+           {t.mg_lantern_success}
         </div>
       )}
     </div>
   );
 };
 
-// Challenge 2: LazyColumn (Packing)
 const SnackListChallenge = ({ onComplete, lang }: { onComplete: () => void, lang: Language }) => {
   const [mode, setMode] = useState<"column" | "lazy">("column");
-  const [items, setItems] = useState<string[]>([]);
   const [scrollPos, setScrollPos] = useState(0);
   const [hasCompleted, setHasCompleted] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
   const t = TEXTS[lang];
-
-  const TOTAL_ITEMS = 1000;
-  const ITEM_HEIGHT = 40;
-  const WINDOW_HEIGHT = 300;
+  
+  // Performance Simulation
+  const [nodeCount, setNodeCount] = useState(1000);
 
   useEffect(() => {
-    // Re-generate items when language changes
-    const snacks = Array.from({ length: TOTAL_ITEMS }, (_, i) => `${t.mg_snack} #${i + 1} ${["🍪","🍫","🍬","🥨","🍎"][i % 5]}`);
-    setItems(snacks);
-  }, [lang]);
+      setNodeCount(mode === "column" ? 1000 : 15);
+  }, [mode]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     setScrollPos(e.currentTarget.scrollTop);
-    
     if (!hasCompleted && mode === "lazy" && e.currentTarget.scrollTop > 800) {
         setHasCompleted(true);
         setTimeout(onComplete, 1500);
     }
   };
 
-  // "Bad" Column Implementation (Visualized)
-  const renderColumn = () => {
-    return (
-      <div style={{ padding: "0" }}>
-        {items.map((item, idx) => (
-          <div key={idx} style={{ 
-              height: ITEM_HEIGHT, 
-              borderBottom: "1px solid #eee", 
-              display: "flex", 
-              alignItems: "center",
-              paddingLeft: "10px",
-              background: "#fff0f0" // Reddish tint for bad
-          }}>
-            {item}
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  // "Good" LazyColumn Implementation (Manually Simulated for Education)
-  const renderLazy = () => {
-    const startIndex = Math.floor(scrollPos / ITEM_HEIGHT);
-    const buffer = 2;
-    const visibleCount = Math.ceil(WINDOW_HEIGHT / ITEM_HEIGHT);
-    const endIndex = Math.min(TOTAL_ITEMS - 1, startIndex + visibleCount + buffer);
-    
-    const visibleItems = [];
-    for (let i = startIndex; i <= endIndex; i++) {
-      visibleItems.push(
-        <div 
-            key={i} 
-            style={{ 
-                position: "absolute", 
-                top: i * ITEM_HEIGHT, 
-                width: "100%", 
-                height: ITEM_HEIGHT, 
-                borderBottom: "1px solid #cfc", 
-                display: "flex", 
-                alignItems: "center",
-                paddingLeft: "10px",
-                background: "#eaffea", // Greenish tint for good
-                transition: "top 0.1s"
-            }}
-        >
-          {items[i]}
-        </div>
-      );
-    }
-
-    return (
-      <div style={{ height: TOTAL_ITEMS * ITEM_HEIGHT, position: "relative" }}>
-        {visibleItems}
-      </div>
-    );
-  };
-
-  const renderCount = mode === "column" ? TOTAL_ITEMS : Math.ceil(WINDOW_HEIGHT / ITEM_HEIGHT) + 3; // +buffer
-
   return (
-    <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "15px" }}>
+    <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "10px" }}>
       <div style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
         <Button variant={mode === "column" ? "primary" : "outline"} onClick={() => setMode("column")}>{t.mg_list_mode_bad}</Button>
         <Button variant={mode === "lazy" ? "primary" : "outline"} onClick={() => setMode("lazy")}>{t.mg_list_mode_good}</Button>
       </div>
 
-      <div style={{ 
-          display: "flex", 
-          justifyContent: "space-between", 
-          background: "#333", 
-          color: "white",
-          padding: "10px 15px", 
-          borderRadius: "8px", 
-          fontSize: "0.9rem", 
-          fontFamily: "monospace"
-      }}>
-        <div>{t.mg_list_items}: {TOTAL_ITEMS}</div>
-        <div style={{ color: mode === "column" ? "#ff6b6b" : "#51cf66" }}>
-            {t.mg_list_nodes}: {renderCount} {mode === "column" ? "⚠️" : "✅"}
-        </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", color: "#666" }}>
+        <span>DOM Nodes: <strong style={{ color: mode === "column" ? "red" : "green" }}>{nodeCount}</strong></span>
+        <span>{hasCompleted ? "✅ Ready!" : "🏁 Goal: Bottom"}</span>
       </div>
 
       <div 
-        ref={containerRef}
         onScroll={handleScroll}
         style={{ 
-            height: WINDOW_HEIGHT, 
+            height: "250px", 
             overflowY: "auto", 
             background: "white", 
-            border: `3px solid ${mode === "column" ? "#ffcccc" : "#ccffcc"}`, 
+            border: `2px solid ${mode === "column" ? "#ffcccc" : "#ccffcc"}`, 
             borderRadius: "8px",
             position: "relative"
         }}
       >
-        {mode === "column" ? renderColumn() : renderLazy()}
-        
-        {/* Viewport Visualizer Overlay */}
-        {mode === "lazy" && (
-             <div style={{
-                 position: "sticky",
-                 top: 0,
-                 right: 0,
-                 pointerEvents: "none",
-                 padding: "5px",
-                 background: "rgba(0,0,0,0.05)",
-                 fontSize: "0.7rem",
-                 color: "#666",
-                 textAlign: "right"
-             }}>
-                 {t.mg_list_viewport}
-             </div>
-        )}
+        <div style={{ height: "4000px", position: "relative" }}>
+            {/* Simulated Items */}
+            {Array.from({ length: mode === "column" ? 20 : 10 }).map((_, i) => {
+                // Logic to only render visible ones if lazy, or render all (simulated visual only) if column
+                // To keep simulation simple: we just show a representative sample
+                const offset = mode === "lazy" ? Math.floor(scrollPos / 40) * 40 : 0;
+                return (
+                    <div key={i} style={{
+                        position: "absolute",
+                        top: mode === "lazy" ? offset + (i * 40) : i * 40,
+                        left: 0, right: 0,
+                        height: "35px",
+                        display: "flex", alignItems: "center", paddingLeft: "10px",
+                        borderBottom: "1px solid #eee",
+                        background: mode === "column" ? "#fff5f5" : "#f0fff4"
+                    }}>
+                        {t.mg_snack} #{mode === "lazy" ? Math.floor(scrollPos / 40) + i + 1 : i + 1}
+                    </div>
+                )
+            })}
+            {mode === "column" && <div style={{ position: "absolute", top: "800px", width: "100%", textAlign: "center", color: "red" }}>... 980 more items ...</div>}
+        </div>
       </div>
-      
-      <p style={{ textAlign: "center", fontSize: "0.85rem", color: "#666", margin: 0 }}>
-        {mode === "column" 
-            ? t.mg_list_instr_bad
-            : t.mg_list_instr_good}
-      </p>
     </div>
   );
 };
 
-// --- Quiz Component ---
-const Quiz = ({ question, options, onCorrect, lang }: { question: string, options: {text: string, correct: boolean}[], onCorrect: () => void, lang: Language }) => {
+const Quiz = ({ question, options, hint, explain, onCorrect, lang }: { question: string, options: {text: string, correct: boolean}[], hint: string, explain: string, onCorrect: () => void, lang: Language }) => {
     const [selected, setSelected] = useState<number | null>(null);
-    const [isSolved, setIsSolved] = useState(false);
+    const [status, setStatus] = useState<"idle" | "correct" | "wrong">("idle");
 
     const handleSelect = (idx: number) => {
+        if (status === "correct") return;
         setSelected(idx);
         if (options[idx].correct) {
-            setIsSolved(true);
-            setTimeout(onCorrect, 1500);
+            setStatus("correct");
+            setTimeout(onCorrect, 3000); // Give time to read explanation
+        } else {
+            setStatus("wrong");
         }
     };
 
     return (
-        <div>
-            <div style={{ background: "#fff", padding: "15px", borderRadius: "10px", borderLeft: "5px solid var(--fire-orange)", marginBottom: "20px" }}>
-                <h3 style={{ margin: "0 0 10px 0", color: "var(--camp-brown)" }}>{TEXTS[lang].quiz1Title}</h3>
-                <p style={{ fontSize: "1.1rem", margin: 0 }}>{question}</p>
+        <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+            <h3 style={{ margin: "0 0 20px 0", color: "#333", fontSize: "1.1rem", lineHeight: "1.5" }}>{question}</h3>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", flex: 1 }}>
+                {options.map((opt, idx) => {
+                    const isSelected = selected === idx;
+                    let borderColor = "#e0e0e0";
+                    let bgColor = "white";
+                    
+                    if (isSelected) {
+                         if (status === "correct") { borderColor = "#2ecc71"; bgColor = "#eafaf1"; }
+                         if (status === "wrong") { borderColor = "#e74c3c"; bgColor = "#fde9e8"; }
+                    }
+
+                    return (
+                        <button
+                            key={idx}
+                            onClick={() => handleSelect(idx)}
+                            style={{
+                                padding: "15px",
+                                borderRadius: "12px",
+                                border: `2px solid ${borderColor}`,
+                                background: bgColor,
+                                cursor: status === "correct" ? "default" : "pointer",
+                                textAlign: "left",
+                                fontSize: "1rem",
+                                fontWeight: isSelected ? "bold" : "normal",
+                                color: isSelected && status === "wrong" ? "#c0392b" : "#333",
+                                transition: "all 0.2s",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "10px"
+                            }}
+                        >
+                            <span style={{ fontWeight: "bold", color: "#888" }}>{String.fromCharCode(65 + idx)}.</span>
+                            {opt.text}
+                        </button>
+                    )
+                })}
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                {options.map((opt, idx) => (
-                    <button
-                        key={idx}
-                        onClick={() => !isSolved && handleSelect(idx)}
-                        style={{
-                            padding: "15px",
-                            borderRadius: "10px",
-                            border: "2px solid #ddd",
-                            background: selected === idx 
-                                ? (opt.correct ? "#d4edda" : "#f8d7da") 
-                                : "white",
-                            borderColor: selected === idx 
-                                ? (opt.correct ? "#28a745" : "#dc3545") 
-                                : "#ddd",
-                            cursor: isSolved ? "default" : "pointer",
-                            textAlign: "left",
-                            fontSize: "1rem",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            transition: "all 0.2s"
-                        }}
-                    >
-                        {opt.text}
-                        {selected === idx && (
-                            opt.correct ? <CheckCircle color="green" /> : <XCircle color="red" />
-                        )}
-                    </button>
-                ))}
+
+            {/* Feedback Card */}
+            <div style={{ minHeight: "80px", marginTop: "20px" }}>
+                {status === "wrong" && (
+                    <div style={{ 
+                        background: "#ffebee", 
+                        color: "#c62828", 
+                        padding: "15px", 
+                        borderRadius: "12px", 
+                        display: "flex", 
+                        gap: "10px", 
+                        alignItems: "start",
+                        animation: "fadeIn 0.3s"
+                    }}>
+                        <Character name="xiaoqi" emotion="sad" />
+                        <div style={{ marginLeft: "60px" }}>
+                            <strong>❌ Oops...</strong>
+                            <p style={{ margin: "5px 0 0 0", fontSize: "0.9rem" }}>{hint}</p>
+                        </div>
+                    </div>
+                )}
+                {status === "correct" && (
+                     <div style={{ 
+                        background: "#e8f5e9", 
+                        color: "#2e7d32", 
+                        padding: "15px", 
+                        borderRadius: "12px", 
+                        display: "flex", 
+                        gap: "10px", 
+                        alignItems: "start",
+                        animation: "fadeIn 0.3s"
+                    }}>
+                        <div style={{ fontSize: "2rem" }}>✨</div>
+                        <div>
+                            <strong>{TEXTS[lang].quizHint.split(">")[0]}</strong> 
+                            <p style={{ margin: "5px 0 0 0", fontSize: "0.9rem" }}>{explain}</p>
+                        </div>
+                    </div>
+                )}
             </div>
-            {isSolved && <p style={{ color: "var(--camp-green)", textAlign: "center", fontWeight: "bold", marginTop: "15px", animation: "fadeIn 0.5s" }}>{TEXTS[lang].correct}</p>}
         </div>
     );
 }
@@ -606,7 +634,7 @@ const Quiz = ({ question, options, onCorrect, lang }: { question: string, option
 export default function App() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [lang, setLang] = useState<Language>("zh");
-
+  const codes = getCodes(lang);
   const t = TEXTS[lang];
 
   const nextSlide = () => {
@@ -619,29 +647,25 @@ export default function App() {
     if (currentSlide > 0) setCurrentSlide(c => c - 1);
   };
 
-  const toggleLang = () => {
-    setLang(l => l === "en" ? "zh" : "en");
-  };
-
-  // Game Content based on PDF - Dynamic based on Language
+  // Slide Configuration
   const slides: SlideConfig[] = useMemo(() => [
     {
       id: 0,
       type: "intro",
       title: t.introTitle,
       content: (
-        <div style={{ textAlign: "center" }}>
-          <h1 style={{ color: "var(--camp-green)", fontSize: "2.5rem", margin: "10px 0" }}>🏕️ {t.introTitle}</h1>
-          <p style={{ fontSize: "1.2rem" }}>{t.introSubtitle}</p>
-          <div style={{ margin: "30px 0" }}>
-             <p><strong>{t.mission}</strong> {t.missionDesc}</p>
-             <div style={{ display: "inline-flex", gap: "10px", flexWrap: "wrap", justifyContent: "center" }}>
-                <span style={{ background: "#e8f5e9", padding: "5px 10px", borderRadius: "15px", color: "var(--camp-green)" }}>🔥 {t.hoisting}</span>
-                <span style={{ background: "#fff3e0", padding: "5px 10px", borderRadius: "15px", color: "var(--fire-orange)" }}>📜 {t.lazyColumn}</span>
+        <div style={{ textAlign: "center", height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}>
+          <Tent size={80} color="var(--camp-orange)" />
+          <h1 style={{ color: "var(--camp-green)", margin: "20px 0 10px 0" }}>{t.introTitle}</h1>
+          <p style={{ fontSize: "1.1rem", color: "#666", maxWidth: "80%" }}>{t.introSubtitle}</p>
+          
+          <div style={{ background: "#fff3e0", padding: "20px", borderRadius: "15px", marginTop: "30px", width: "100%" }}>
+             <h4 style={{ margin: "0 0 10px 0", color: "var(--fire-orange)" }}>{t.mission}</h4>
+             <p style={{ margin: 0 }}>{t.missionDesc}</p>
+             <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginTop: "15px" }}>
+                <Backpack size={20} /> <MapIcon size={20} /> <Flame size={20} />
              </div>
           </div>
-          <div style={{ fontSize: "4rem", margin: "20px" }}>👧 🐱 🏔️</div>
-          <Button onClick={nextSlide}>{t.start}</Button>
         </div>
       )
     },
@@ -650,15 +674,23 @@ export default function App() {
         type: "story",
         title: t.story1Title,
         content: (
-            <>
+            <div style={{ display: "flex", flexDirection: "column", height: "100%", justifyContent: "center" }}>
                 <Character name="xiaoqi" emotion="confused" />
-                <Character name="cat" emotion="teaching" side="right" />
-                <p><strong>Xiao Qi:</strong> "{t.story1P1}"</p>
-                <p><strong>Cat:</strong> "{t.story1P2}"</p>
-                <p style={{ background: "#f0f0f0", padding: "10px", borderRadius: "8px", fontStyle: "italic" }}>
+                <div style={{ marginLeft: "80px", background: "white", padding: "15px", borderRadius: "20px 20px 20px 0", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
+                    <p style={{ margin: 0 }}><strong>Xiao Qi:</strong> {t.story1P1}</p>
+                </div>
+                
+                <div style={{ marginTop: "30px", display: "flex", justifyContent: "flex-end" }}>
+                    <div style={{ marginRight: "80px", background: "#fff8e1", padding: "15px", borderRadius: "20px 20px 0 20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
+                        <p style={{ margin: 0 }}><strong>Cat:</strong> {t.story1P2}</p>
+                    </div>
+                    <Character name="cat" emotion="teaching" side="right" />
+                </div>
+                
+                <div style={{ marginTop: "40px", textAlign: "center", color: "var(--camp-green)", fontWeight: "bold" }}>
                     {t.story1Lesson}
-                </p>
-            </>
+                </div>
+            </div>
         )
     },
     {
@@ -666,21 +698,17 @@ export default function App() {
         type: "concept",
         title: t.concept1Title,
         content: (
-            <div style={{ textAlign: "center" }}>
-                <p>{t.concept1P1}</p>
-                <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center", margin: "30px 0", background: "#fff", padding: "20px", borderRadius: "10px" }}>
-                    <div style={{ opacity: 0.7 }}>
-                        <Tent size={64} color="#d64545" /> 
-                        <div style={{ fontSize: "0.8rem", marginTop: "5px" }}>{t.concept1TentA}</div>
-                    </div>
-                    <div style={{ fontSize: "2rem", color: "red", fontWeight: "bold" }}>X</div>
-                    <div style={{ opacity: 0.7 }}>
-                        <Tent size={64} color="#457cd6" /> 
-                        <div style={{ fontSize: "0.8rem", marginTop: "5px" }}>{t.concept1TentB}</div>
+            <div>
+                <div style={{ background: "#e3f2fd", padding: "15px", borderRadius: "12px", display: "flex", gap: "15px", alignItems: "center", marginBottom: "20px" }}>
+                    <BookOpen color="#1976d2" size={32} />
+                    <div>
+                        <strong style={{ color: "#1565c0" }}>{t.diaryAnalogyTitle}</strong>
+                        <p style={{ margin: "5px 0 0 0", fontSize: "0.9rem" }}>{t.diaryAnalogy}</p>
                     </div>
                 </div>
-                <p>{t.concept1P2}</p>
-                <p style={{ color: "red" }}>{t.concept1Bad}</p>
+
+                <p>{t.concept1Desc}</p>
+                <SimpleCodeHighlighter code={codes.badState} />
             </div>
         )
     },
@@ -689,29 +717,32 @@ export default function App() {
         type: "concept",
         title: t.concept2Title,
         content: (
-            <div style={{ textAlign: "center" }}>
-                <p>{t.concept2P1}</p>
-                <div style={{ background: "var(--night-blue)", padding: "20px", borderRadius: "10px", color: "white", margin: "20px 0" }}>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                        <Flame color="orange" size={48} fill="orange" />
-                        <div style={{ display: "flex", alignItems: "center", gap: "5px", background: "rgba(255,255,255,0.2)", padding: "5px 15px", borderRadius: "20px", marginTop: "10px" }}>
-                            <MapIcon color="wheat" size={20} />
-                            <span>{t.concept2Shared}</span>
-                        </div>
+            <div>
+                 <div style={{ background: "#e8f5e9", padding: "15px", borderRadius: "12px", display: "flex", gap: "15px", alignItems: "center", marginBottom: "20px" }}>
+                    <div style={{ background: "white", padding: "8px", borderRadius: "50%" }}>
+                         <MapIcon color="#2e7d32" size={20} />
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-around", marginTop: "20px" }}>
-                        <div style={{ textAlign: "center" }}>
-                            <div style={{ height: "30px", borderLeft: "2px dashed rgba(255,255,255,0.5)", marginBottom: "5px" }}></div>
-                            <Tent size={40} color="#d64545" /> 
+                    <div>
+                        <strong style={{ color: "#2e7d32" }}>{t.whiteboardAnalogyTitle}</strong>
+                        <p style={{ margin: "5px 0 0 0", fontSize: "0.9rem" }}>{t.whiteboardAnalogy}</p>
+                    </div>
+                </div>
+
+                <SimpleCodeHighlighter code={codes.goodState} />
+
+                <div style={{ marginTop: "20px", padding: "15px", border: "2px dashed #ddd", borderRadius: "12px" }}>
+                    <h4 style={{ margin: "0 0 10px 0", color: "#555" }}>{t.patternTitle}</h4>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "0.9rem" }}>
+                        <div style={{ display: "flex", gap: "10px" }}>
+                            <div style={{ fontWeight: "bold", color: "#e67e22" }}>{t.patternValue}</div>
+                            <div style={{ color: "#7f8c8d" }}>{t.patternValueDesc}</div>
                         </div>
-                        <div style={{ textAlign: "center" }}>
-                            <div style={{ height: "30px", borderLeft: "2px dashed rgba(255,255,255,0.5)", marginBottom: "5px" }}></div>
-                            <Tent size={40} color="#457cd6" />
+                        <div style={{ display: "flex", gap: "10px" }}>
+                            <div style={{ fontWeight: "bold", color: "#27ae60" }}>{t.patternEvent}</div>
+                            <div style={{ color: "#7f8c8d" }}>{t.patternEventDesc}</div>
                         </div>
                     </div>
                 </div>
-                <p>{t.concept2P2}</p>
-                <p style={{ color: "green" }}>{t.concept2Pattern}</p>
             </div>
         )
     },
@@ -723,9 +754,12 @@ export default function App() {
             <Quiz 
                 lang={lang}
                 question={t.quiz1Q}
+                hint={t.quiz1Hint}
+                explain={t.quiz1Explain}
                 options={[
                     { text: t.quiz1A, correct: false },
-                    { text: t.quiz1B, correct: true }
+                    { text: t.quiz1B, correct: true },
+                    { text: t.quiz1C, correct: false }
                 ]}
                 onCorrect={nextSlide}
             />
@@ -737,7 +771,9 @@ export default function App() {
         title: t.challenge1Title,
         content: (
             <div>
-                <p>{t.challenge1Desc}</p>
+                <div style={{ marginBottom: "15px", display: "flex", gap: "10px", alignItems: "center", background: "#fff3cd", padding: "10px", borderRadius: "8px", fontSize: "0.9rem", color: "#856404" }}>
+                    <AlertCircle size={18} /> {t.challenge1Desc}
+                </div>
                 <LanternChallenge lang={lang} onComplete={() => setTimeout(nextSlide, 2000)} />
             </div>
         )
@@ -747,15 +783,14 @@ export default function App() {
         type: "story",
         title: t.story2Title,
         content: (
-            <>
-                <Character name="xiaoqi" emotion="excited" />
-                <div style={{ textAlign: "center" }}>
-                    <p><strong>Xiao Qi:</strong> "{t.story2P1}"</p>
-                    <p>{t.story2P2}</p>
-                    <div style={{ fontSize: "4rem", margin: "20px 0" }}>🍪🍫🍬🎒</div>
-                    <p>{t.story2P3}</p>
+            <div style={{ textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", height: "100%" }}>
+                <div style={{ fontSize: "4rem", marginBottom: "20px" }}>🎒 🍪 🍫</div>
+                <h3 style={{ color: "var(--camp-brown)" }}>{t.story2P1}</h3>
+                <p>{t.story2P2}</p>
+                <div style={{ background: "#ffebee", padding: "15px", borderRadius: "10px", marginTop: "20px", color: "#c62828" }}>
+                    ⚠️ {t.story2P3}
                 </div>
-            </>
+            </div>
         )
     },
     {
@@ -763,15 +798,18 @@ export default function App() {
         type: "concept",
         title: t.concept3Title,
         content: (
-            <div style={{ display: "flex", gap: "15px", flexDirection: "column" }}>
-                 <div style={{ border: "2px solid #ffcccc", padding: "15px", borderRadius: "12px", background: "#fff5f5" }}>
-                    <h4 style={{ margin: "0 0 5px 0", color: "#c0392b", display: "flex", alignItems: "center", gap: "10px" }}><XCircle size={20}/> {t.concept3BadTitle}</h4>
-                    <p style={{ margin: 0, fontSize: "0.9rem" }}>{t.concept3BadDesc}</p>
-                 </div>
-                 <div style={{ border: "2px solid #ccffcc", padding: "15px", borderRadius: "12px", background: "#f0fff4" }}>
-                    <h4 style={{ margin: "0 0 5px 0", color: "#27ae60", display: "flex", alignItems: "center", gap: "10px" }}><CheckCircle size={20}/> {t.concept3GoodTitle}</h4>
-                    <p style={{ margin: 0, fontSize: "0.9rem" }}>{t.concept3GoodDesc}</p>
-                 </div>
+            <div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "20px" }}>
+                    <div style={{ padding: "15px", borderRadius: "10px", background: "#ffebee", border: "1px solid #ef9a9a" }}>
+                        <div style={{ fontWeight: "bold", color: "#c62828", marginBottom: "5px" }}>Column</div>
+                        <div style={{ fontSize: "0.85rem" }}>{t.concept3BadDesc}</div>
+                    </div>
+                    <div style={{ padding: "15px", borderRadius: "10px", background: "#e8f5e9", border: "1px solid #a5d6a7" }}>
+                        <div style={{ fontWeight: "bold", color: "#2e7d32", marginBottom: "5px" }}>LazyColumn</div>
+                        <div style={{ fontSize: "0.85rem" }}>{t.concept3GoodDesc}</div>
+                    </div>
+                </div>
+                <SimpleCodeHighlighter code={codes.lazyList} />
             </div>
         )
     },
@@ -781,7 +819,7 @@ export default function App() {
         title: t.challenge2Title,
         content: (
             <div>
-                <p>{t.challenge2Desc}</p>
+                <p style={{ marginBottom: "20px" }}>{t.challenge2Desc}</p>
                 <SnackListChallenge lang={lang} onComplete={() => setTimeout(nextSlide, 2000)} />
             </div>
         )
@@ -791,30 +829,23 @@ export default function App() {
         type: "concept",
         title: t.concept4Title,
         content: (
-            <div style={{ fontSize: "0.95rem" }}>
-                <div style={{ marginBottom: "20px" }}>
-                    <h4 style={{ color: "var(--camp-brown)", display: "flex", alignItems: "center", gap: "10px" }}>
-                        <Tag size={20} /> {t.concept4KeyTitle}
-                    </h4>
-                    <p>{t.concept4KeyDesc}</p>
-                </div>
-                
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
                 <div>
-                    <h4 style={{ color: "var(--camp-brown)", display: "flex", alignItems: "center", gap: "10px" }}>
-                        <Maximize size={20} /> {t.concept4PadTitle}
+                    <h4 style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--camp-brown)", margin: "0 0 5px 0" }}>
+                        <Tag size={18} /> {t.concept4KeyTitle}
                     </h4>
-                    <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                        <div style={{ flex: 1, border: "2px dashed #ccc", padding: "5px", borderRadius: "5px", textAlign: "center", fontSize: "0.8rem" }}>
-                            {t.concept4PadBad}
-                        </div>
-                        <ArrowRight size={16} />
-                        <div style={{ flex: 1, border: "2px solid var(--camp-green)", padding: "2px", borderRadius: "5px", textAlign: "center", fontSize: "0.8rem" }}>
-                            <div style={{ background: "#eaffea", padding: "10px" }}>
-                             {t.concept4PadGood}
-                            </div>
-                        </div>
-                    </div>
-                    <p style={{ marginTop: "5px" }}>{t.concept4PadDesc}</p>
+                    <p style={{ margin: 0, fontSize: "0.9rem", color: "#555" }}>{t.concept4KeyDesc}</p>
+                </div>
+                <div style={{ height: "1px", background: "#eee" }} />
+                <div>
+                    <h4 style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--camp-brown)", margin: "0 0 5px 0" }}>
+                        <Maximize size={18} /> {t.concept4PadTitle}
+                    </h4>
+                    <p style={{ margin: 0, fontSize: "0.9rem", color: "#555" }}>{t.concept4PadDesc}</p>
+                </div>
+                <div style={{ background: "#f9f9f9", padding: "10px", borderRadius: "8px", fontSize: "0.8rem", color: "#777", fontStyle: "italic" }}>
+                    <Lightbulb size={14} style={{ marginRight: "5px", verticalAlign: "middle" }} />
+                    {lang === "zh" ? "提示：看看上一页的代码示例，这些属性都已经用上了！" : "Tip: Check the code snippet on the previous page, these props are already used!"}
                 </div>
             </div>
         )
@@ -824,12 +855,15 @@ export default function App() {
         type: "quiz",
         title: t.quiz2Title,
         content: (
-            <Quiz 
+             <Quiz 
                 lang={lang}
                 question={t.quiz2Q}
+                hint={t.quiz2Hint}
+                explain={t.quiz2Explain}
                 options={[
                     { text: t.quiz2A, correct: false },
-                    { text: t.quiz2B, correct: true }
+                    { text: t.quiz2B, correct: true },
+                    { text: t.quiz2C, correct: false }
                 ]}
                 onCorrect={nextSlide}
             />
@@ -840,29 +874,21 @@ export default function App() {
         type: "outro",
         title: t.outroTitle,
         content: (
-            <div style={{ textAlign: "center" }}>
-                <h1 style={{ color: "var(--fire-orange)" }}>{t.outroBadge}</h1>
-                <p>{t.outroMsg}</p>
-                <div style={{ background: "#fff", padding: "20px", borderRadius: "15px", display: "inline-block", textAlign: "left", margin: "20px 0" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
-                        <CheckCircle color="green" size={20} /> <span>{t.outroItem1}</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
-                         <CheckCircle color="green" size={20} /> <span>{t.outroItem2}</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                         <CheckCircle color="green" size={20} /> <span>{t.outroItem3}</span>
-                    </div>
+            <div style={{ textAlign: "center", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                <h1 style={{ color: "var(--fire-orange)", fontSize: "2rem" }}>{t.outroBadge}</h1>
+                <p style={{ fontSize: "1.2rem", color: "#555" }}>{t.outroMsg}</p>
+                
+                <div style={{ display: "flex", gap: "10px", margin: "30px 0" }}>
+                    <div style={{ background: "white", padding: "10px", borderRadius: "10px", boxShadow: "0 2px 5px rgba(0,0,0,0.1)" }}>🔥 State</div>
+                    <div style={{ background: "white", padding: "10px", borderRadius: "10px", boxShadow: "0 2px 5px rgba(0,0,0,0.1)" }}>📜 Lazy</div>
+                    <div style={{ background: "white", padding: "10px", borderRadius: "10px", boxShadow: "0 2px 5px rgba(0,0,0,0.1)" }}>🔑 Keys</div>
                 </div>
-                <div style={{ marginTop: "30px", position: "relative", height: "100px" }}>
+
+                <Button onClick={() => setCurrentSlide(0)} variant="primary">{t.restart}</Button>
+                
+                <div style={{ marginTop: "50px", position: "relative", width: "100%" }}>
                     <Character name="friend" emotion="camping" side="left" />
-                    <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", bottom: "0" }}>
-                         <Tent size={80} color="#e25822" />
-                    </div>
                     <Character name="cat" emotion="happy" side="right" />
-                </div>
-                <div style={{ marginTop: "40px" }}>
-                    <Button onClick={() => setCurrentSlide(0)}>{t.restart}</Button>
                 </div>
             </div>
         )
@@ -870,15 +896,12 @@ export default function App() {
   ], [lang]);
 
   // --- Safety Check ---
-  // Ensure currentSlide is valid (handles HMR or language switches safely)
   if (currentSlide >= slides.length) {
     setCurrentSlide(0);
     return null;
   }
 
   const slide = slides[currentSlide];
-  
-  // Guard against undefined slide (double safety)
   if (!slide) return null;
 
   return (
@@ -889,73 +912,99 @@ export default function App() {
         background: "var(--camp-beige)",
         display: "flex",
         flexDirection: "column",
-        fontFamily: "'Segoe UI', sans-serif"
+        fontFamily: "'Nunito', 'Segoe UI', sans-serif"
     }}>
-      {/* Header / Progress */}
-      <div style={{ padding: "15px 20px", background: "var(--camp-green)", color: "white", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 2px 5px rgba(0,0,0,0.2)" }}>
-        <span style={{ fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px" }}><Tent size={20} /> {t.title}</span>
-        <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
+      {/* Header */}
+      <div style={{ padding: "15px 20px", background: "var(--camp-orange)", color: "white", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 4px 0 #c04515" }}>
+        <span style={{ fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px", fontSize: "1.1rem" }}>
+            <Tent size={22} /> 
+            {/* Mobile title truncation */}
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "200px" }}>
+                {t.title}
+            </span>
+        </span>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
             <button 
-                onClick={toggleLang} 
-                style={{ 
-                    background: "rgba(255,255,255,0.2)", 
-                    border: "none", 
-                    color: "white", 
-                    borderRadius: "5px", 
-                    padding: "5px 10px", 
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "5px",
-                    fontSize: "0.9rem"
-                }}>
-                <Languages size={16} />
-                {lang === "en" ? "中文" : "English"}
+                onClick={() => setLang(l => l === "en" ? "zh" : "en")}
+                style={{ background: "rgba(0,0,0,0.1)", border: "none", color: "white", borderRadius: "8px", padding: "6px", cursor: "pointer" }}>
+                <Languages size={20} />
             </button>
-            <span style={{ fontSize: "0.9rem", opacity: 0.9 }}>{t.step} {currentSlide + 1} {t.of} {slides.length}</span>
         </div>
       </div>
-      <div style={{ width: "100%", height: "6px", background: "#ddd" }}>
-        <div style={{ width: `${((currentSlide + 1) / slides.length) * 100}%`, height: "100%", background: "var(--fire-orange)", transition: "width 0.5s ease-in-out" }} />
+
+      {/* Progress Bar */}
+      <div style={{ width: "100%", height: "8px", background: "#e0e0e0" }}>
+        <div style={{ width: `${((currentSlide + 1) / slides.length) * 100}%`, height: "100%", background: "var(--camp-green)", borderRadius: "0 4px 4px 0", transition: "width 0.5s ease" }} />
+      </div>
+      
+      <div style={{ textAlign: "right", padding: "5px 20px", fontSize: "0.8rem", color: "#888" }}>
+          {t.step} {currentSlide + 1} {t.of} {slides.length}
       </div>
 
-      {/* Main Content Area */}
-      <div style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column" }}>
-        <div key={slide.id} className="slide-enter" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-            <h2 style={{ color: "var(--camp-brown)", marginTop: 0, fontSize: "1.8rem", textAlign: "center" }}>{slide.title}</h2>
+      {/* Main Card */}
+      <div style={{ flex: 1, padding: "10px 20px 20px 20px", display: "flex", flexDirection: "column" }}>
+         <div key={slide.id} className="slide-enter" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            <h2 style={{ color: "var(--camp-brown)", marginTop: 0, marginBottom: "15px", fontSize: "1.5rem", textAlign: "center" }}>{slide.title}</h2>
             <div style={{ 
                 background: "white", 
                 padding: "25px", 
-                borderRadius: "20px", 
-                boxShadow: "0 8px 20px rgba(74, 103, 65, 0.1)", 
+                borderRadius: "24px", 
+                boxShadow: "0 10px 30px rgba(139, 90, 43, 0.1)", 
                 flex: 1,
                 display: "flex",
                 flexDirection: "column",
-                justifyContent: slide.type === "story" || slide.type === "intro" ? "center" : "flex-start",
                 position: "relative",
-                overflow: "hidden" // For character positioning
+                overflow: "visible"
             }}>
                 {slide.content}
             </div>
-        </div>
+         </div>
       </div>
 
-      {/* Navigation */}
-      <div style={{ padding: "20px", display: "flex", justifyContent: "space-between", background: "rgba(255,255,255,0.5)", backdropFilter: "blur(5px)" }}>
-        <Button variant="secondary" onClick={prevSlide} disabled={currentSlide === 0}>{t.back}</Button>
-        
+      {/* Navigation Footer */}
+      <div style={{ padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <button 
+            onClick={prevSlide} 
+            disabled={currentSlide === 0}
+            style={{ border: "none", background: "transparent", color: currentSlide === 0 ? "#ccc" : "var(--camp-brown)", cursor: currentSlide === 0 ? "default" : "pointer", display: "flex", alignItems: "center", gap: "5px", fontWeight: "bold" }}
+        >
+            ← {t.back}
+        </button>
+
         {/* Only show Next if it's not a blocking interactive slide */}
         {!["quiz", "challenge_lantern", "challenge_list"].includes(slide.type) && (
-            <Button onClick={nextSlide} disabled={currentSlide === slides.length - 1}>
-                {t.next} <ArrowRight size={18} style={{ verticalAlign: "middle", marginLeft: "5px" }} />
-            </Button>
+             <Button onClick={nextSlide} variant="primary">
+                {t.next} →
+             </Button>
         )}
       </div>
       
       <style>{`
+        :root {
+            --camp-green: #6ab04c;
+            --camp-orange: #e67e22;
+            --camp-brown: #5d4037;
+            --camp-beige: #fdfbf7;
+            --fire-orange: #e25822;
+        }
+        .slide-enter {
+          animation: slideIn 0.4s ease-out;
+        }
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
         @keyframes bounce {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-10px); }
+        }
+        .pulse-btn {
+          animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+          0% { box-shadow: 0 0 0 0 rgba(230, 126, 34, 0.4); }
+          70% { box-shadow: 0 0 0 10px rgba(230, 126, 34, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(230, 126, 34, 0); }
         }
       `}</style>
     </div>
